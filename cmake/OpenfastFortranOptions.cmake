@@ -43,8 +43,9 @@ macro(set_fast_fortran)
   # Abort if we do not have gfortran or Intel Fortran Compiler.
   if (NOT (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU" OR
         ${CMAKE_Fortran_COMPILER_ID} MATCHES "^Intel" OR
+        ${CMAKE_Fortran_COMPILER_ID} MATCHES "LLVMFlang" OR
         ${CMAKE_Fortran_COMPILER_ID} STREQUAL "Flang"))
-    message(FATAL_ERROR "OpenFAST requires GFortran, Intel, or Flang Compiler. Compiler detected by CMake: ${FCNAME}.")
+    message(FATAL_ERROR "OpenFAST requires GFortran, Intel, or Flang Compiler. Compiler detected by CMake: ${FCNAME}. Type: ${CMAKE_Fortran_COMPILER_ID}.")
   endif()
 
   # Verify proper compiler versions are available
