@@ -264,7 +264,7 @@ macro(set_fast_llvmflang)
   # Deal with Double/Single precision
   if (DOUBLE_PRECISION)
     add_definitions(-DOPENFAST_DOUBLE_PRECISION)
-    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fdefault-real-8 -fdefault-double-8")
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fdefault-real-8") # Errors without real-8, errors with fdefault-integer-8 or fdefault-double-8
   endif (DOUBLE_PRECISION)
 
   if (OPENMP)
@@ -273,7 +273,7 @@ macro(set_fast_llvmflang)
     set(OpenMP_gomp_LIBRARY "-lgomp")
   endif (OPENMP)
 
-  add_definitions(-DFLANG_COMPILER)
+  #add_definitions(-DFLANG_COMPILER)
 
   check_f2008_features()
 endmacro(set_fast_llvmflang)
