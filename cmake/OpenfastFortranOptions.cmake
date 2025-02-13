@@ -74,6 +74,8 @@ macro(set_fast_fortran)
     set_fast_intel_fortran()
   elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Flang")
     set_fast_flang()
+  elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "LLVMFlang")
+    set_fast_llvmflang()
   endif()
 
   # If double precision option enabled, set preprocessor define to use
@@ -230,7 +232,7 @@ macro(set_fast_intel_fortran_windows)
 endmacro(set_fast_intel_fortran_windows)
 
 #
-# set_fast_flang - Customizations for GNU Fortran compiler
+# set_fast_flang - Customizations for AMD Flang
 #
 macro(set_fast_flang)
 
@@ -246,3 +248,32 @@ macro(set_fast_flang)
 
   check_f2008_features()
 endmacro(set_fast_flang)
+
+#
+# set_fast_llvmflang - Customizations for LLVM Flang
+#
+macro(set_fast_llvmflang)
+  if(NOT WIN32)
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fPIC ")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+  endif(NOT WIN32)
+
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -cpp")
+
+  # Deal with Double/Single precision
+  if (DOUBLE_PRECISION)
+    add_definitions(-DOPENFAST_DOUBLE_PRECISION)
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fdefault-real-8 -fdefault-double-8")
+  endif (DOUBLE_PRECISION)
+
+  if (OPENMP)
+    set(OpenMP_Fortran_FLAGS "-fopenmp")
+    set(OpenMP_Fortran_LIB_NAMES "gomp")
+    set(OpenMP_gomp_LIBRARY "-lgomp")
+  endif (OPENMP)
+
+  add_definitions(-DFLANG_COMPILER)
+
+  check_f2008_features()
+endmacro(set_fast_llvmflang)
