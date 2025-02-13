@@ -172,9 +172,9 @@ contains
       R = real(p%RotorRad,ReKi) * 0.7_reKi !70% radius
       do i=1,ADsk_NumPtsDiskAvg
          theta = pi +(i-1)*TwoPi/ADsk_NumPtsDiskAvg
-         p%DiskWindPosRel(1,i) = R*cos(theta)
-         p%DiskWindPosRel(2,i) = R*sin(theta)
-         p%DiskWindPosRel(3,i) = 0.0_ReKi
+         p%DiskWindPosRel(1,i) = 0.0_ReKi          ! Hub X (perpindicular to rotor plane)
+         p%DiskWindPosRel(2,i) = R*cos(theta)      ! Hub Y
+         p%DiskWindPosRel(3,i) = R*sin(theta)      ! Hub Z (in vertical plane when azimuth=0)
       end do
    end subroutine SetDiskAvgPoints
 
@@ -261,7 +261,8 @@ contains
          InitOut%WriteOutputUnt(i) = p%OutParam(i)%Units
       end do
       ! Version
-      InitOut%Ver = ADsk_Ver
+      InitOut%Ver     = ADsk_Ver
+      InitOut%AirDens = p%AirDens
    end subroutine Init_InitY
 END SUBROUTINE ADsk_Init
 

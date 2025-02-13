@@ -483,7 +483,7 @@ CONTAINS
       ENDIF
       
       ! Reading Boundary layer file for aeroacoustics
-      CALL ParseVar ( FileInfo, CurLine, 'BL_file' , p%BL_file , ErrStat2, ErrMsg2, UnEc )
+      CALL ParseVar ( FileInfo, CurLine, 'BL_file' , p%BL_file , ErrStat2, ErrMsg2, UnEc, IsPath=.true. )
          IF (ErrStat2 >= AbortErrLev) p%BL_file = "NOT_SET_IN_AIRFOIL_FILE"
          !CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
       IF ( PathIsRelative( p%BL_file ) )  p%BL_file=trim(PriPath)//trim(p%BL_file)
@@ -990,6 +990,8 @@ ALPHA_LOOP: DO Row=1,p%Table(iTable)%NumAlf-1
                ! find bounding indices for limitAlphaRange
             iHighLimit = min( maxloc( alpha_ , DIM=1, MASK=alpha_ <  LimitAlphaRange) + 1, size(alpha_) ) ! we can limit this to some range
             iLowLimit  = max( minloc( alpha_ , DIM=1, MASK=alpha_ > -LimitAlphaRange) - 1, 1            ) ! we can limit this to some range
+            if (iHighLimit - iLowLimit < 3) iHighLimit = min(iLowLimit+2,size(alpha_)) ! this could still be an issue if we don't have very many points in the airfoil table. If that's the case, this data is not worth anything anyway
+            if (iHighLimit - iLowLimit < 3) iLowLimit  = max(iHighLimit-2,1) ! this could still be an issue if we don't have very many points in the airfoil table. If that's the case, this data is not worth anything anyway
             
                ! find alphaUpper (using smoothed Cn values):
             if (CalcDefaults%alphaUpper) then
@@ -1053,12 +1055,12 @@ ALPHA_LOOP: DO Row=1,p%Table(iTable)%NumAlf-1
                !mask = p%alpha >= p%UA_BL%alphaLower+alphaMargin & p%alpha <= p%UA_BL%alphaUpper-alphaMargin;
             
                iLow2 = iLowLimit
-               do while (iLow2 < iHighLimit .and. p%alpha(iLow2) <  p%UA_BL%alphaLower + alphaMargin) 
+               do while (iLow2 < iHighLimit-1 .and. p%alpha(iLow2) <  p%UA_BL%alphaLower + alphaMargin) 
                   iLow2 = iLow2 + 1
                end do
 
                iHigh2 = iHighLimit
-               do while (iHigh2 > iLowLimit .and. p%alpha(iHigh2) >  p%UA_BL%alphaUpper - alphaMargin) 
+               do while (iHigh2 > iLow2+1 .and. p%alpha(iHigh2) >  p%UA_BL%alphaUpper - alphaMargin) 
                   iHigh2 = iHigh2 - 1
                end do
 
@@ -1181,11 +1183,25 @@ ALPHA_LOOP: DO Row=1,p%Table(iTable)%NumAlf-1
       REAL(ReKi)                              :: A(      size(alpha), 2)
       REAL(ReKi)                              :: B(max(2,size(alpha)),2)
 
+      if (SIZE(Cn) < 2 .OR. SIZE(Cl) < 2) then
+         ErrMsg='Calculate_C_alpha: Not enough data points to compute Cn and Cl slopes.'
+         ErrStat=ErrID_Fatal
+         Default_Cn_alpha = EPSILON(Default_Cn_alpha)
+         Default_Cl_alpha = EPSILON(Default_Cl_alpha)
+         Default_alpha0 = 0.0_ReKi
+         return
+      end if
+
       A(:,1) = alpha
       A(:,2) = 1.0_ReKi
       
-      B(:,1) = Cn
-      B(:,2) = Cl
+      if (size(Cn) == 1) then
+         B(:,1) = Cn(1)
+         B(:,2) = Cl(1)
+      else
+         B(:,1) = Cn
+         B(:,2) = Cl
+      end if
       
       CALL LAPACK_gels('N', A, B, ErrStat, ErrMsg)
    
@@ -1916,13 +1932,12 @@ subroutine AFI_WrHeader(delim, FileName, unOutFile, ErrStat, ErrMsg)
    ChanName(i) = 'alphaBreakLower';   ChanUnit(i) = '(deg)';      i = i+1;
    ChanName(i) = 'CnBreakLower';      ChanUnit(i) = '(-)';        i = i+1;
 
+   !$OMP critical(fileopen_critical)
    CALL GetNewUnit( unOutFile, ErrStat, ErrMsg )
-   IF ( ErrStat /= ErrID_None ) RETURN
-
-   CALL OpenFOutFile ( unOutFile, trim(FileName), ErrStat2, ErrMsg2 )
-      call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-      if (ErrStat >= AbortErrLev) return
-      
+   if (ErrStat < AbortErrLev) then
+      CALL OpenFOutFile ( unOutFile, trim(FileName), ErrStat2, ErrMsg2 )
+   endif
+   !$OMP end critical(fileopen_critical)
          
    ! Generate file outputs
 
@@ -2095,11 +2110,12 @@ subroutine AFI_WrTables(AFI_Params,UAMod,OutRootName)
 
       
       ! Write to file
-
+      !$OMP critical(fileopen_critical)
       CALL GetNewUnit( unOutFile, ErrStat, ErrMsg )
-      IF ( ErrStat /= ErrID_None ) RETURN
-
-      CALL OpenFOutFile ( unOutFile, trim(OutRootName)//'.Coefs.'//trim(num2lstr(iTab))//'.out', ErrStat, ErrMsg )
+      if (ErrStat < AbortErrLev) then
+         CALL OpenFOutFile ( unOutFile, trim(OutRootName)//'.Coefs.'//trim(num2lstr(iTab))//'.out', ErrStat, ErrMsg )
+      endif
+      !$OMP end critical(fileopen_critical)
          if (ErrStat >= AbortErrLev) then
             call WrScr(Trim(ErrMsg))
             return
